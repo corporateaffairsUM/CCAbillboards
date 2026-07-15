@@ -56,7 +56,6 @@
             color: #1a2a6c;
             text-transform: uppercase;
             font-family: 'Arial Black', 'Segoe UI', sans-serif;
-            /* no text-shadow */
         }
         .left-panel .header .weather-label {
             font-size: 18px;
@@ -67,7 +66,6 @@
             border-top: 2px solid #1a2a6c;
             display: inline-block;
             padding-top: 2px;
-            /* no text-shadow */
         }
 
         /* ─── CURRENT WEATHER ─── */
@@ -285,7 +283,6 @@
         <!-- ═══ LEFT PANEL ═══ -->
         <div class="left-panel">
             <div class="header">
-                <!-- Changed to "Universiti Malaya" -->
                 <div class="city">Universiti Malaya</div>
                 <div class="weather-label">Weather</div>
             </div>
@@ -321,10 +318,12 @@
     </div>
 
     <script>
+        // ─── CONSOLE LOG TO CONFIRM SCRIPT LOADS ──────────────────
+        console.log('✅ Script loaded successfully!');
+
         // ─── YOUR API KEY ──────────────────────────────────────────
         const API_KEY = '96a9d62bbe7be4ad886c3d0c2fca59e3';
-        // ─── UPDATED COORDINATES for Universiti Malaya ───────────
-        const LAT = 3.1209;   // UM main campus
+        const LAT = 3.1209;
         const LON = 101.6534;
         const UNITS = 'metric';
 
@@ -369,17 +368,18 @@
             return { color: '#8e44ad', label: 'Hazardous' };
         }
 
-        // ─── Show "API is not ready" state ────────────────────────
-        function setApiNotReady() {
+        // ─── Show error state ──────────────────────────────────────
+        function showError(message) {
+            console.error('❌ Error displayed to user:', message);
             currentIcon.textContent = '⚠️';
             currentTemp.innerHTML = '--<sup>°C</sup>';
-            currentCondition.textContent = 'API is not ready';
+            currentCondition.textContent = '⚠️ ' + message;
             feelsLike.textContent = '--';
             humidity.textContent = '--';
             windSpeed.textContent = '--';
 
             forecastContainer.innerHTML = `
-                <div class="api-not-ready">⚠️ API is not ready</div>
+                <div class="api-not-ready">⚠️ ${message}</div>
             `;
 
             aqiValue.textContent = '--';
@@ -389,15 +389,23 @@
 
         // ─── fetch & update ────────────────────────────────────────
         async function fetchWeather() {
+            console.log('🌤️ fetchWeather() called at', new Date().toLocaleTimeString());
+
             try {
                 // 1) Current weather
+                console.log('📡 Fetching current weather...');
                 const currentRes = await fetch(
                     `https://api.openweathermap.org/data/2.5/weather?lat=${LAT}&lon=${LON}&units=${UNITS}&appid=${API_KEY}`
                 );
+                console.log('📡 Current weather response status:', currentRes.status);
                 if (!currentRes.ok) {
-                    throw new Error(`HTTP ${currentRes.status}`);
+                    let msg = `HTTP ${currentRes.status}`;
+                    if (currentRes.status === 401) msg = 'API key invalid or not activated yet (wait 1-2 hours)';
+                    else if (currentRes.status === 429) msg = 'Rate limit exceeded (free tier: 60 calls/min)';
+                    throw new Error(msg);
                 }
                 const currentData = await currentRes.json();
+                console.log('✅ Current weather received:', currentData.weather[0].description);
 
                 const temp = Math.round(currentData.main.temp);
                 currentTemp.innerHTML = `${temp}<sup>°C</sup>`;
@@ -410,13 +418,18 @@
                 windSpeed.textContent = windKmh;
 
                 // 2) 5‑day forecast
+                console.log('📡 Fetching forecast...');
                 const forecastRes = await fetch(
                     `https://api.openweathermap.org/data/2.5/forecast?lat=${LAT}&lon=${LON}&units=${UNITS}&appid=${API_KEY}`
                 );
+                console.log('📡 Forecast response status:', forecastRes.status);
                 if (!forecastRes.ok) {
-                    throw new Error(`Forecast HTTP ${forecastRes.status}`);
+                    let msg = `HTTP ${forecastRes.status}`;
+                    if (forecastRes.status === 401) msg = 'API key invalid or not activated yet';
+                    throw new Error(msg);
                 }
                 const forecastData = await forecastRes.json();
+                console.log('✅ Forecast received, list length:', forecastData.list.length);
 
                 const dailyMap = new Map();
                 for (const entry of forecastData.list) {
@@ -431,10 +444,10 @@
                 const todayKey = new Date().toISOString().split('T')[0];
                 const sortedDays = Array.from(dailyMap.keys()).sort();
                 const futureDays = sortedDays.filter(d => d > todayKey).slice(0, 4);
-                const dayNames = ['Wed', 'Thu', 'Fri', 'Sat'];
+                console.log('📅 Forecast days (excluding today):', futureDays);
 
                 let forecastHTML = '';
-                futureDays.forEach((dayKey, idx) => {
+                futureDays.forEach((dayKey) => {
                     const entries = dailyMap.get(dayKey);
                     let best = entries[0];
                     let bestDiff = Infinity;
@@ -449,7 +462,7 @@
                     const hi = Math.round(best.main.temp_max);
                     const lo = Math.round(best.main.temp_min);
                     const icon = weatherIconToEmoji(best.weather[0].icon);
-                    const name = dayNames[idx] || getDayName(best.dt);
+                    const name = getDayName(best.dt);
                     forecastHTML += `
                         <div class="day-row">
                             <span class="day-name">${name}</span>
@@ -471,11 +484,13 @@
                 forecastContainer.innerHTML = forecastHTML;
 
                 // 3) Air Quality
+                console.log('📡 Fetching air quality...');
                 const aqiRes = await fetch(
                     `https://api.openweathermap.org/data/2.5/air_pollution?lat=${LAT}&lon=${LON}&appid=${API_KEY}`
                 );
+                console.log('📡 AQI response status:', aqiRes.status);
                 if (!aqiRes.ok) {
-                    console.warn('AQI fetch failed:', aqiRes.status);
+                    console.warn('⚠️ AQI fetch failed:', aqiRes.status);
                     aqiValue.textContent = '?';
                     aqiDesc.textContent = 'AQI unavailable';
                     aqiBox.style.background = '#95a5a6';
@@ -487,17 +502,24 @@
                     const level = aqiLevel(pm25);
                     aqiDesc.textContent = level.label;
                     aqiBox.style.background = level.color;
+                    console.log('✅ AQI received:', rounded, level.label);
                 }
 
+                console.log('🎉 All data updated successfully!');
+
             } catch (error) {
-                console.warn('API fetch failed:', error.message);
-                setApiNotReady();
+                console.error('❌ fetchWeather() caught an error:', error.message);
+                showError('API is not ready: ' + error.message);
             }
         }
 
         // ─── auto‑update ──────────────────────────────────────────
-        fetchWeather();
-        setInterval(fetchWeather, 30 * 60 * 1000);
+        // Use DOMContentLoaded to be 100% sure the DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('📄 DOM fully loaded, starting fetch...');
+            fetchWeather();
+            setInterval(fetchWeather, 30 * 60 * 1000);
+        });
     </script>
 
 </body>
