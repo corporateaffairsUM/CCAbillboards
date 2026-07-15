@@ -85,7 +85,7 @@
             line-height: 1;
             display: block;
             color: #2c5f8a;
-            filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.15)); /* shadow ONLY on emoji */
+            filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.15));
         }
         .current .temp {
             font-size: 42px;
@@ -93,7 +93,6 @@
             color: #0b1a3a;
             letter-spacing: -1px;
             margin-top: -2px;
-            /* no text-shadow */
         }
         .current .temp sup {
             font-size: 22px;
@@ -107,7 +106,6 @@
             color: #1e3a5f;
             text-transform: capitalize;
             margin-top: -2px;
-            /* no text-shadow */
         }
         .current-details {
             display: flex;
@@ -126,7 +124,6 @@
             font-size: 11px;
             letter-spacing: 0.3px;
             border: 1px solid #e9ecef;
-            /* no text-shadow */
         }
         .current-details .label {
             font-weight: 400;
@@ -150,7 +147,6 @@
             letter-spacing: 3px;
             text-transform: uppercase;
             opacity: 0.9;
-            /* no text-shadow */
         }
         .aqi-box .aqi-value {
             font-size: 42px;
@@ -158,14 +154,12 @@
             line-height: 1;
             margin-top: -2px;
             letter-spacing: 2px;
-            /* no text-shadow */
         }
         .aqi-box .aqi-desc {
             font-size: 11px;
             font-weight: 600;
             opacity: 0.9;
             letter-spacing: 1px;
-            /* no text-shadow */
         }
 
         /* ─── FORECAST ─── */
@@ -194,21 +188,19 @@
             font-weight: 700;
             font-size: 14px;
             color: #1a2a6c;
-            /* no text-shadow */
         }
         .forecast .day-row .day-icon {
             font-size: 26px;
             line-height: 1;
             width: 38px;
             text-align: center;
-            filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.1)); /* shadow ONLY on emoji */
+            filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.1));
         }
         .forecast .day-row .day-temps {
             font-weight: 700;
             font-size: 15px;
             color: #0b1a3a;
             letter-spacing: 0.5px;
-            /* no text-shadow */
         }
         .forecast .day-row .day-temps .hi {
             color: #c0392b;
@@ -225,13 +217,11 @@
         .right-panel {
             flex: 1;
             height: 100%;
-            /* ─── REPLACE THIS URL with your own image ─── */
             background-image: url('billboardpic.png');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
             background-color: #eef2f7;
-            /* subtle shadow overlay on image (keep) */
             box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.05);
         }
 
@@ -295,7 +285,8 @@
         <!-- ═══ LEFT PANEL ═══ -->
         <div class="left-panel">
             <div class="header">
-                <div class="city">Petaling Jaya</div>
+                <!-- Changed to "Universiti Malaya" -->
+                <div class="city">Universiti Malaya</div>
                 <div class="weather-label">Weather</div>
             </div>
 
@@ -332,8 +323,9 @@
     <script>
         // ─── YOUR API KEY ──────────────────────────────────────────
         const API_KEY = '96a9d62bbe7be4ad886c3d0c2fca59e3';
-        const LAT = 3.1073;
-        const LON = 101.6067;
+        // ─── UPDATED COORDINATES for Universiti Malaya ───────────
+        const LAT = 3.1209;   // UM main campus
+        const LON = 101.6534;
         const UNITS = 'metric';
 
         // ─── DOM refs ──────────────────────────────────────────────
