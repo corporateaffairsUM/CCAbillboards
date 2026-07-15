@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>UM Weather Billboard – Live</title>
+    <style>
+        /* ── Reset & Base ── */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #FFFFFF; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+        }
+
+        /* ─── BILLBOARD – WHITE BOX ─── */
+        .billboard {
+            width: 960px;
+            height: 720px;
+            display: flex;
+            background: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        /* ═══ LEFT PANEL – White ─── */
+        .left-panel {
+            width: 265px;
+            min-width: 265px;
+            background: #ffffff;
+            padding: 18px 16px 16px 16px;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #e0e0e0;
+            height: 100%;
+            z-index: 2;
+            position: relative;
+        }
+        .left-panel .header {
+            text-align: center;
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+            line-height: 1.1;
+        }
+        .left-panel .header .city {
+            font-size: 26px;
+            font-weight: 800;
+            color: #1a2a6c;
+            text-transform: uppercase;
+            font-family: 'Arial Black', 'Segoe UI', sans-serif;
+            /* no text-shadow */
+        }
+        .left-panel .header .weather-label {
+            font-size: 18px;
+            font-weight: 700;
+            color: #2c3e7a;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            border-top: 2px solid #1a2a6c;
+            display: inline-block;
+            padding-top: 2px;
+            /* no text-shadow */
+        }
+
+        /* ─── CURRENT WEATHER ─── */
+        .current {
+            background: #f8f9fa;
+            border-radius: 16px;
+            padding: 12px 0 8px 0;
+            text-align: center;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            border: 1px solid #e9ecef;
+        }
+        .current .icon {
+            font-size: 56px;
+            line-height: 1;
+            display: block;
+            color: #2c5f8a;
+            filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.15)); /* shadow ONLY on emoji */
+        }
+        .current .temp {
+            font-size: 42px;
+            font-weight: 700;
+            color: #0b1a3a;
+            letter-spacing: -1px;
+            margin-top: -2px;
+            /* no text-shadow */
+        }
+        .current .temp sup {
+            font-size: 22px;
+            font-weight: 400;
+            top: -12px;
+            color: #555;
+        }
+        .current .condition {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e3a5f;
+            text-transform: capitalize;
+            margin-top: -2px;
+            /* no text-shadow */
+        }
+        .current-details {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #1e3a5f;
+            margin-top: 6px;
+            flex-wrap: wrap;
+        }
+        .current-details span {
+            background: #ffffff;
+            padding: 2px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            letter-spacing: 0.3px;
+            border: 1px solid #e9ecef;
+            /* no text-shadow */
+        }
+        .current-details .label {
+            font-weight: 400;
+            color: #000000;
+        }
+
+        /* ─── AQI BOX ─── */
+        .aqi-box {
+            border-radius: 12px;
+            padding: 6px 0 8px 0;
+            text-align: center;
+            color: #fff;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 10px rgba(31, 139, 76, 0.35);
+            transition: transform 0.2s;
+            background: #1f8b4c;
+        }
+        .aqi-box .aqi-label {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            opacity: 0.9;
+            /* no text-shadow */
+        }
+        .aqi-box .aqi-value {
+            font-size: 42px;
+            font-weight: 800;
+            line-height: 1;
+            margin-top: -2px;
+            letter-spacing: 2px;
+            /* no text-shadow */
+        }
+        .aqi-box .aqi-desc {
+            font-size: 11px;
+            font-weight: 600;
+            opacity: 0.9;
+            letter-spacing: 1px;
+            /* no text-shadow */
+        }
+
+        /* ─── FORECAST ─── */
+        .forecast {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-evenly;
+            padding: 2px 0;
+        }
+        .forecast .day-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-size: 15px;
+            font-weight: 600;
+            color: #1a2a4a;
+            border: 1px solid #e9ecef;
+            min-height: 42px;
+        }
+        .forecast .day-row .day-name {
+            width: 58px;
+            font-weight: 700;
+            font-size: 14px;
+            color: #1a2a6c;
+            /* no text-shadow */
+        }
+        .forecast .day-row .day-icon {
+            font-size: 26px;
+            line-height: 1;
+            width: 38px;
+            text-align: center;
+            filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.1)); /* shadow ONLY on emoji */
+        }
+        .forecast .day-row .day-temps {
+            font-weight: 700;
+            font-size: 15px;
+            color: #0b1a3a;
+            letter-spacing: 0.5px;
+            /* no text-shadow */
+        }
+        .forecast .day-row .day-temps .hi {
+            color: #c0392b;
+        }
+        .forecast .day-row .day-temps .lo {
+            color: #2c6b9e;
+        }
+        .forecast .day-row .day-temps span {
+            margin: 0 2px;
+            color: #95a5a6;
+        }
+
+        /* ═══ RIGHT PANEL (Image) ─── */
+        .right-panel {
+            flex: 1;
+            height: 100%;
+            /* ─── REPLACE THIS URL with your own image ─── */
+            background-image: url('billboardpic.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-color: #eef2f7;
+            /* subtle shadow overlay on image (keep) */
+            box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.05);
+        }
+
+        /* ─── Responsive scaling ─── */
+        @media (max-width: 980px) {
+            .billboard {
+                transform: scale(0.85);
+            }
+        }
+        @media (max-width: 820px) {
+            .billboard {
+                transform: scale(0.7);
+            }
+        }
+        @media (max-width: 680px) {
+            .billboard {
+                transform: scale(0.55);
+            }
+        }
+        @media (max-width: 540px) {
+            .billboard {
+                transform: scale(0.42);
+            }
+        }
+        .billboard::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* ─── Loading / Error States ─── */
+        .loading-text {
+            font-size: 14px;
+            color: #7f8c8d;
+            padding: 4px 0;
+            text-align: center;
+        }
+        .error-text {
+            font-size: 14px;
+            color: #e74c3c;
+            font-weight: 700;
+        }
+        .error-detail {
+            font-size: 11px;
+            color: #95a5a6;
+        }
+        .api-not-ready {
+            font-size: 16px;
+            font-weight: 700;
+            color: #e74c3c;
+            text-align: center;
+            padding: 12px 0;
+            background: #fdf0ef;
+            border-radius: 10px;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="billboard" id="app">
+
+        <!-- ═══ LEFT PANEL ═══ -->
+        <div class="left-panel">
+            <div class="header">
+                <div class="city">Petaling Jaya</div>
+                <div class="weather-label">Weather</div>
+            </div>
+
+            <!-- Current Weather -->
+            <div class="current" id="currentWeather">
+                <span class="icon" id="currentIcon">☁️</span>
+                <div class="temp" id="currentTemp">--<sup>°C</sup></div>
+                <div class="condition" id="currentCondition">loading…</div>
+                <div class="current-details" id="currentDetails">
+                    <span><span class="label">Feels</span> <span id="feelsLike">--</span>°C</span>
+                    <span><span class="label">Humidity</span> <span id="humidity">--</span>%</span>
+                    <span><span class="label">Wind</span> <span id="windSpeed">--</span> km/h</span>
+                </div>
+            </div>
+
+            <!-- Air Quality -->
+            <div class="aqi-box" id="aqiBox">
+                <div class="aqi-label">Air Quality Index (AQI)</div>
+                <div class="aqi-value" id="aqiValue">--</div>
+                <div class="aqi-desc" id="aqiDesc">loading…</div>
+            </div>
+
+            <!-- Forecast -->
+            <div class="forecast" id="forecastContainer">
+                <div class="loading-text">Fetching forecast…</div>
+            </div>
+        </div>
+
+        <!-- ═══ RIGHT PANEL (Image) ═══ -->
+        <div class="right-panel"></div>
+
+    </div>
+
+    <script>
+        // ─── YOUR API KEY ──────────────────────────────────────────
+        const API_KEY = '96a9d62bbe7be4ad886c3d0c2fca59e3';
+        const LAT = 3.1073;
+        const LON = 101.6067;
+        const UNITS = 'metric';
+
+        // ─── DOM refs ──────────────────────────────────────────────
+        const currentIcon = document.getElementById('currentIcon');
+        const currentTemp = document.getElementById('currentTemp');
+        const currentCondition = document.getElementById('currentCondition');
+        const feelsLike = document.getElementById('feelsLike');
+        const humidity = document.getElementById('humidity');
+        const windSpeed = document.getElementById('windSpeed');
+        const forecastContainer = document.getElementById('forecastContainer');
+        const aqiValue = document.getElementById('aqiValue');
+        const aqiDesc = document.getElementById('aqiDesc');
+        const aqiBox = document.getElementById('aqiBox');
+
+        // ─── helpers ───────────────────────────────────────────────
+        function getDayName(ts) {
+            const d = new Date(ts * 1000);
+            return d.toLocaleDateString('en-US', { weekday: 'short' });
+        }
+
+        function weatherIconToEmoji(iconCode) {
+            const map = {
+                '01d': '☀️', '01n': '🌙',
+                '02d': '⛅', '02n': '☁️',
+                '03d': '☁️', '03n': '☁️',
+                '04d': '☁️', '04n': '☁️',
+                '09d': '🌧️', '09n': '🌧️',
+                '10d': '🌧️', '10n': '🌧️',
+                '11d': '⛈️', '11n': '⛈️',
+                '13d': '❄️', '13n': '❄️',
+                '50d': '🌫️', '50n': '🌫️'
+            };
+            return map[iconCode] || '🌤️';
+        }
+
+        function aqiLevel(pm25) {
+            if (pm25 <= 12) return { color: '#1f8b4c', label: 'Good' };
+            if (pm25 <= 35) return { color: '#f1c40f', label: 'Fair' };
+            if (pm25 <= 55) return { color: '#e67e22', label: 'Moderate' };
+            if (pm25 <= 150) return { color: '#e74c3c', label: 'Unhealthy' };
+            return { color: '#8e44ad', label: 'Hazardous' };
+        }
+
+        // ─── Show "API is not ready" state ────────────────────────
+        function setApiNotReady() {
+            currentIcon.textContent = '⚠️';
+            currentTemp.innerHTML = '--<sup>°C</sup>';
+            currentCondition.textContent = 'API is not ready';
+            feelsLike.textContent = '--';
+            humidity.textContent = '--';
+            windSpeed.textContent = '--';
+
+            forecastContainer.innerHTML = `
+                <div class="api-not-ready">⚠️ API is not ready</div>
+            `;
+
+            aqiValue.textContent = '--';
+            aqiDesc.textContent = 'unavailable';
+            aqiBox.style.background = '#95a5a6';
+        }
+
+        // ─── fetch & update ────────────────────────────────────────
+        async function fetchWeather() {
+            try {
+                // 1) Current weather
+                const currentRes = await fetch(
+                    `https://api.openweathermap.org/data/2.5/weather?lat=${LAT}&lon=${LON}&units=${UNITS}&appid=${API_KEY}`
+                );
+                if (!currentRes.ok) {
+                    throw new Error(`HTTP ${currentRes.status}`);
+                }
+                const currentData = await currentRes.json();
+
+                const temp = Math.round(currentData.main.temp);
+                currentTemp.innerHTML = `${temp}<sup>°C</sup>`;
+                currentCondition.textContent = currentData.weather[0].description;
+                currentIcon.textContent = weatherIconToEmoji(currentData.weather[0].icon);
+
+                feelsLike.textContent = Math.round(currentData.main.feels_like);
+                humidity.textContent = Math.round(currentData.main.humidity);
+                const windKmh = Math.round(currentData.wind.speed * 3.6);
+                windSpeed.textContent = windKmh;
+
+                // 2) 5‑day forecast
+                const forecastRes = await fetch(
+                    `https://api.openweathermap.org/data/2.5/forecast?lat=${LAT}&lon=${LON}&units=${UNITS}&appid=${API_KEY}`
+                );
+                if (!forecastRes.ok) {
+                    throw new Error(`Forecast HTTP ${forecastRes.status}`);
+                }
+                const forecastData = await forecastRes.json();
+
+                const dailyMap = new Map();
+                for (const entry of forecastData.list) {
+                    const date = new Date(entry.dt * 1000);
+                    const dayKey = date.toISOString().split('T')[0];
+                    if (!dailyMap.has(dayKey)) {
+                        dailyMap.set(dayKey, []);
+                    }
+                    dailyMap.get(dayKey).push(entry);
+                }
+
+                const todayKey = new Date().toISOString().split('T')[0];
+                const sortedDays = Array.from(dailyMap.keys()).sort();
+                const futureDays = sortedDays.filter(d => d > todayKey).slice(0, 4);
+                const dayNames = ['Wed', 'Thu', 'Fri', 'Sat'];
+
+                let forecastHTML = '';
+                futureDays.forEach((dayKey, idx) => {
+                    const entries = dailyMap.get(dayKey);
+                    let best = entries[0];
+                    let bestDiff = Infinity;
+                    for (const e of entries) {
+                        const h = new Date(e.dt * 1000).getHours();
+                        const diff = Math.abs(h - 12);
+                        if (diff < bestDiff) {
+                            bestDiff = diff;
+                            best = e;
+                        }
+                    }
+                    const hi = Math.round(best.main.temp_max);
+                    const lo = Math.round(best.main.temp_min);
+                    const icon = weatherIconToEmoji(best.weather[0].icon);
+                    const name = dayNames[idx] || getDayName(best.dt);
+                    forecastHTML += `
+                        <div class="day-row">
+                            <span class="day-name">${name}</span>
+                            <span class="day-icon">${icon}</span>
+                            <span class="day-temps"><span class="hi">${hi}°</span> <span>/</span> <span class="lo">${lo}°</span></span>
+                        </div>
+                    `;
+                });
+
+                while (futureDays.length < 4) {
+                    forecastHTML += `
+                        <div class="day-row">
+                            <span class="day-name">---</span>
+                            <span class="day-icon">🌧️</span>
+                            <span class="day-temps"><span class="hi">--°</span> <span>/</span> <span class="lo">--°</span></span>
+                        </div>
+                    `;
+                }
+                forecastContainer.innerHTML = forecastHTML;
+
+                // 3) Air Quality
+                const aqiRes = await fetch(
+                    `https://api.openweathermap.org/data/2.5/air_pollution?lat=${LAT}&lon=${LON}&appid=${API_KEY}`
+                );
+                if (!aqiRes.ok) {
+                    console.warn('AQI fetch failed:', aqiRes.status);
+                    aqiValue.textContent = '?';
+                    aqiDesc.textContent = 'AQI unavailable';
+                    aqiBox.style.background = '#95a5a6';
+                } else {
+                    const aqiData = await aqiRes.json();
+                    const pm25 = aqiData.list[0].components.pm2_5;
+                    const rounded = Math.round(pm25);
+                    aqiValue.textContent = rounded;
+                    const level = aqiLevel(pm25);
+                    aqiDesc.textContent = level.label;
+                    aqiBox.style.background = level.color;
+                }
+
+            } catch (error) {
+                console.warn('API fetch failed:', error.message);
+                setApiNotReady();
+            }
+        }
+
+        // ─── auto‑update ──────────────────────────────────────────
+        fetchWeather();
+        setInterval(fetchWeather, 30 * 60 * 1000);
+    </script>
+
+</body>
+</html>
