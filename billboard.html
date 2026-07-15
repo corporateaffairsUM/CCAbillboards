@@ -211,11 +211,10 @@
             color: #95a5a6;
         }
 
-        /* ═══ RIGHT PANEL (Image) ─── */
+        /* ═══ RIGHT PANEL (Image) – background set by JavaScript ─── */
         .right-panel {
             flex: 1;
             height: 100%;
-            background-image: url('billboardpic.png');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -301,7 +300,7 @@
 
             <!-- Air Quality -->
             <div class="aqi-box" id="aqiBox">
-                <div class="aqi-label">Air Quality Index</div>
+                <div class="aqi-label">Air Quality Index (AQI)</div>
                 <div class="aqi-value" id="aqiValue">--</div>
                 <div class="aqi-desc" id="aqiDesc">loading…</div>
             </div>
@@ -313,7 +312,7 @@
         </div>
 
         <!-- ═══ RIGHT PANEL (Image) ═══ -->
-        <div class="right-panel"></div>
+        <div class="right-panel" id="rightPanel"></div>
 
     </div>
 
@@ -338,6 +337,17 @@
         const aqiValue = document.getElementById('aqiValue');
         const aqiDesc = document.getElementById('aqiDesc');
         const aqiBox = document.getElementById('aqiBox');
+        const rightPanel = document.getElementById('rightPanel');
+
+        // ─── IMAGE URL (change this to your image filename) ──────
+        const IMAGE_URL = 'billboardpic.png';
+
+        // ─── Helper to refresh the right panel image ──────────────
+        function refreshImage() {
+            const timestamp = Date.now(); // unique every millisecond
+            rightPanel.style.backgroundImage = `url('${IMAGE_URL}?t=${timestamp}')`;
+            console.log('🖼️ Image refreshed with timestamp:', timestamp);
+        }
 
         // ─── helpers ───────────────────────────────────────────────
         function getDayName(ts) {
@@ -505,6 +515,9 @@
                     console.log('✅ AQI received:', rounded, level.label);
                 }
 
+                // 4) Refresh the right panel image (cache‑busting)
+                refreshImage();
+
                 console.log('🎉 All data updated successfully!');
 
             } catch (error) {
@@ -514,9 +527,10 @@
         }
 
         // ─── auto‑update ──────────────────────────────────────────
-        // Use DOMContentLoaded to be 100% sure the DOM is ready
         document.addEventListener('DOMContentLoaded', function() {
             console.log('📄 DOM fully loaded, starting fetch...');
+            // Load the image immediately with a timestamp
+            refreshImage();
             fetchWeather();
             setInterval(fetchWeather, 30 * 60 * 1000);
         });
