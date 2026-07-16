@@ -12,7 +12,7 @@
             box-sizing: border-box;
         }
         body {
-            background: #FFFFFF; 
+            background: #FFFFFF;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -159,6 +159,14 @@
             opacity: 0.9;
             letter-spacing: 1px;
         }
+        .aqi-credit {
+            font-size: 8px;
+            color: rgba(255, 255, 255, 0.6);
+            text-align: center;
+            margin-top: 2px;
+            letter-spacing: 0.5px;
+            opacity: 0.8;
+        }
 
         /* ─── FORECAST ─── */
         .forecast {
@@ -211,7 +219,7 @@
             color: #95a5a6;
         }
 
-        /* ═══ RIGHT PANEL (Image) – background set by JavaScript ─── */
+        /* ═══ RIGHT PANEL (Image) ─── */
         .right-panel {
             flex: 1;
             height: 100%;
@@ -298,11 +306,12 @@
                 </div>
             </div>
 
-            <!-- Air Quality -->
+            <!-- Air Quality (Now from IQAir) -->
             <div class="aqi-box" id="aqiBox">
                 <div class="aqi-label">Air Quality Index</div>
                 <div class="aqi-value" id="aqiValue">--</div>
                 <div class="aqi-desc" id="aqiDesc">loading…</div>
+                <div class="aqi-credit">Real-time data • IQAir</div>
             </div>
 
             <!-- Forecast -->
@@ -320,9 +329,10 @@
         // ─── CONSOLE LOG TO CONFIRM SCRIPT LOADS ──────────────────
         console.log('✅ Script loaded successfully!');
 
-        // ─── YOUR API KEY ──────────────────────────────────────────
-        const API_KEY = '96a9d62bbe7be4ad886c3d0c2fca59e3';
-        const LAT = 3.1209;
+        // ─── API KEYS ──────────────────────────────────────────────
+        const OWM_KEY = '96a9d62bbe7be4ad886c3d0c2fca59e3'; // OpenWeatherMap for weather
+        const IQAIR_KEY = 'f2d845b5-4d9e-41a9-8124-0a5ba98e59d6'; // IQAir for AQI
+        const LAT = 3.1209; // Universiti Malaya
         const LON = 101.6534;
         const UNITS = 'metric';
 
@@ -344,7 +354,7 @@
 
         // ─── Helper to refresh the right panel image ──────────────
         function refreshImage() {
-            const timestamp = Date.now(); // unique every millisecond
+            const timestamp = Date.now();
             rightPanel.style.backgroundImage = `url('${IMAGE_URL}?t=${timestamp}')`;
             console.log('🖼️ Image refreshed with timestamp:', timestamp);
         }
@@ -370,12 +380,14 @@
             return map[iconCode] || '🌤️';
         }
 
-        function aqiLevel(pm25) {
-            if (pm25 <= 12) return { color: '#1f8b4c', label: 'Good' };
-            if (pm25 <= 35) return { color: '#f1c40f', label: 'Fair' };
-            if (pm25 <= 55) return { color: '#e67e22', label: 'Moderate' };
-            if (pm25 <= 150) return { color: '#e74c3c', label: 'Unhealthy' };
-            return { color: '#8e44ad', label: 'Hazardous' };
+        // ─── US AQI Level Mapping (0–500 scale) ──────────────────
+        function getAqiLevel(aqi) {
+            if (aqi <= 50) return { color: '#1f8b4c', label: 'Good' };
+            if (aqi <= 100) return { color: '#f1c40f', label: 'Moderate' };
+            if (aqi <= 150) return { color: '#e67e22', label: 'Unhealthy for Sensitive Groups' };
+            if (aqi <= 200) return { color: '#e74c3c', label: 'Unhealthy' };
+            if (aqi <= 300) return { color: '#8e44ad', label: 'Very Unhealthy' };
+            return { color: '#7f0f0f', label: 'Hazardous' };
         }
 
         // ─── Show error state ──────────────────────────────────────
@@ -402,16 +414,16 @@
             console.log('🌤️ fetchWeather() called at', new Date().toLocaleTimeString());
 
             try {
-                // 1) Current weather
-                console.log('📡 Fetching current weather...');
+                // ─── 1) CURRENT WEATHER (OpenWeatherMap) ───
+                console.log('📡 Fetching current weather from OpenWeatherMap...');
                 const currentRes = await fetch(
-                    `https://api.openweathermap.org/data/2.5/weather?lat=${LAT}&lon=${LON}&units=${UNITS}&appid=${API_KEY}`
+                    `https://api.openweathermap.org/data/2.5/weather?lat=${LAT}&lon=${LON}&units=${UNITS}&appid=${OWM_KEY}`
                 );
                 console.log('📡 Current weather response status:', currentRes.status);
                 if (!currentRes.ok) {
                     let msg = `HTTP ${currentRes.status}`;
-                    if (currentRes.status === 401) msg = 'API key invalid or not activated yet (wait 1-2 hours)';
-                    else if (currentRes.status === 429) msg = 'Rate limit exceeded (free tier: 60 calls/min)';
+                    if (currentRes.status === 401) msg = 'OWM API key invalid';
+                    else if (currentRes.status === 429) msg = 'Rate limit exceeded';
                     throw new Error(msg);
                 }
                 const currentData = await currentRes.json();
@@ -427,15 +439,15 @@
                 const windKmh = Math.round(currentData.wind.speed * 3.6);
                 windSpeed.textContent = windKmh;
 
-                // 2) 5‑day forecast
-                console.log('📡 Fetching forecast...');
+                // ─── 2) 5‑DAY FORECAST (OpenWeatherMap) ───
+                console.log('📡 Fetching forecast from OpenWeatherMap...');
                 const forecastRes = await fetch(
-                    `https://api.openweathermap.org/data/2.5/forecast?lat=${LAT}&lon=${LON}&units=${UNITS}&appid=${API_KEY}`
+                    `https://api.openweathermap.org/data/2.5/forecast?lat=${LAT}&lon=${LON}&units=${UNITS}&appid=${OWM_KEY}`
                 );
                 console.log('📡 Forecast response status:', forecastRes.status);
                 if (!forecastRes.ok) {
                     let msg = `HTTP ${forecastRes.status}`;
-                    if (forecastRes.status === 401) msg = 'API key invalid or not activated yet';
+                    if (forecastRes.status === 401) msg = 'OWM API key invalid';
                     throw new Error(msg);
                 }
                 const forecastData = await forecastRes.json();
@@ -493,43 +505,59 @@
                 }
                 forecastContainer.innerHTML = forecastHTML;
 
-                // 3) Air Quality
-                console.log('📡 Fetching air quality...');
-                const aqiRes = await fetch(
-                    `https://api.openweathermap.org/data/2.5/air_pollution?lat=${LAT}&lon=${LON}&appid=${API_KEY}`
+                // ─── 3) AIR QUALITY (IQAir) ───
+                console.log('📡 Fetching air quality from IQAir...');
+                const iqairRes = await fetch(
+                    `http://api.airvisual.com/v2/nearest_city?lat=${LAT}&lon=${LON}&key=${IQAIR_KEY}`
                 );
-                console.log('📡 AQI response status:', aqiRes.status);
-                if (!aqiRes.ok) {
-                    console.warn('⚠️ AQI fetch failed:', aqiRes.status);
-                    aqiValue.textContent = '?';
-                    aqiDesc.textContent = 'AQI unavailable';
-                    aqiBox.style.background = '#95a5a6';
-                } else {
-                    const aqiData = await aqiRes.json();
-                    const pm25 = aqiData.list[0].components.pm2_5;
-                    const rounded = Math.round(pm25);
-                    aqiValue.textContent = rounded;
-                    const level = aqiLevel(pm25);
-                    aqiDesc.textContent = level.label;
-                    aqiBox.style.background = level.color;
-                    console.log('✅ AQI received:', rounded, level.label);
+                console.log('📡 IQAir response status:', iqairRes.status);
+
+                if (!iqairRes.ok) {
+                    let msg = `IQAir HTTP ${iqairRes.status}`;
+                    if (iqairRes.status === 401) msg = 'IQAir API key invalid or not activated yet (wait a few minutes)';
+                    else if (iqairRes.status === 429) msg = 'IQAir rate limit exceeded (5 calls/min)';
+                    throw new Error(msg);
                 }
 
-                // 4) Refresh the right panel image (cache‑busting)
+                const iqairData = await iqairRes.json();
+                console.log('✅ IQAir response received');
+
+                if (iqairData.status !== 'success') {
+                    throw new Error('IQAir API returned error: ' + (iqairData.data?.message || 'Unknown'));
+                }
+
+                const aqiValueNum = iqairData.data.current.pollution.aqius;
+                console.log('✅ IQAir AQI (US):', aqiValueNum);
+
+                aqiValue.textContent = aqiValueNum;
+                const level = getAqiLevel(aqiValueNum);
+                aqiDesc.textContent = level.label;
+                aqiBox.style.background = level.color;
+
+                // ─── 4) REFRESH IMAGE (cache‑busting) ───
                 refreshImage();
 
                 console.log('🎉 All data updated successfully!');
 
             } catch (error) {
                 console.error('❌ fetchWeather() caught an error:', error.message);
-                showError('API is not ready: ' + error.message);
+                // If IQAir fails but OWM works, we still want to show weather.
+                // Only show the error if it's a critical failure (like no weather).
+                // But we'll update the AQI box to show the error.
+                if (error.message.includes('IQAir')) {
+                    aqiValue.textContent = '?';
+                    aqiDesc.textContent = 'AQI unavailable';
+                    aqiBox.style.background = '#95a5a6';
+                    // Don't override the whole page if only IQAir fails
+                } else {
+                    showError('API is not ready: ' + error.message);
+                }
             }
         }
 
         // ─── auto‑update ──────────────────────────────────────────
         document.addEventListener('DOMContentLoaded', function() {
             console.log('📄 DOM fully loaded, starting fetch...');
-            // Load the image immediately with a timestamp
             refreshImage();
             fetchWeather();
             setInterval(fetchWeather, 30 * 60 * 1000);
