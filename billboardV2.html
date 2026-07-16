@@ -49,14 +49,14 @@
             flex-shrink: 0;
         }
         .header .city {
-            font-size: 50px;
+            font-size: 35px;
             font-weight: 900;
             color: #1a2a6c;
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 1px;
             font-family: 'Arial Black', 'Segoe UI', sans-serif;
             flex: 1;
-            text-align: center-right;
+            text-align: left;
         }
 
         /* ─── MAIN GRID ─── */
@@ -67,24 +67,24 @@
             align-items: stretch;
         }
 
-        /* ═══ LEFT COLUMN – CURRENT WEATHER (FILLED) ═══ */
+        /* ═══ LEFT COLUMN – CURRENT WEATHER ─══ */
         .current-weather {
             flex: 1.5;
             background: #f8f9fa;
             border-radius: 24px;
-            padding: 30px 24px 28px;
+            padding: 10px 14px 28px;
             border: 1px solid #e9ecef;
             display: flex;
             flex-direction: column;
             justify-content: space-evenly;
-            align-items: center;
+            align-items: top;
             text-align: center;
         }
         .current-weather .icon {
             font-size: 110px;
             line-height: 1;
             filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.10));
-            margin-bottom: 4px;
+            margin-bottom: -15px;
         }
         .current-weather .temp {
             font-size: 150px;
@@ -289,19 +289,14 @@
 
         <!-- HEADER – LOGO + TITLE -->
         <div class="header">
-            <!-- 
-                ─── REPLACE THIS WITH YOUR UM LOGO ───
-                Save your logo as "um-logo.png" in the same folder as this HTML file.
-                Or use a direct URL: https://example.com/um-logo.png
-            -->
+			<div class="city">What's on the weather today?</div>
             <img src="Logo UM-01.png" alt="UM Logo" class="logo" id="logoImage" />
-            <div class="city">Weather Report</div>
         </div>
 
         <!-- MAIN GRID -->
         <div class="main-grid">
 
-            <!-- LEFT: Current Weather (FILLED) -->
+            <!-- LEFT: Current Weather -->
             <div class="current-weather" id="currentWeather">
                 <span class="icon" id="currentIcon">☁️</span>
                 <div class="temp" id="currentTemp">--<sup>°C</sup></div>
@@ -339,9 +334,9 @@
         console.log('✅ Script loaded successfully!');
 
         // ─── API KEYS ──────────────────────────────────────────────
-        const OWM_KEY = '96a9d62bbe7be4ad886c3d0c2fca59e3'; // OpenWeatherMap for weather
-        const IQAIR_KEY = 'f2d845b5-4d9e-41a9-8124-0a5ba98e59d6'; // IQAir for AQI
-        const LAT = 3.1209; // Universiti Malaya
+        const OWM_KEY = '96a9d62bbe7be4ad886c3d0c2fca59e3';
+        const IQAIR_KEY = 'f2d845b5-4d9e-41a9-8124-0a5ba98e59d6';
+        const LAT = 3.1209;
         const LON = 101.6534;
         const UNITS = 'metric';
 
@@ -412,12 +407,11 @@
             console.log('🌤️ fetchWeather() called at', new Date().toLocaleTimeString());
 
             try {
-                // ─── 1) CURRENT WEATHER (OpenWeatherMap) ───
+                // ─── 1) CURRENT WEATHER ───
                 console.log('📡 Fetching current weather from OpenWeatherMap...');
                 const currentRes = await fetch(
                     `https://api.openweathermap.org/data/2.5/weather?lat=${LAT}&lon=${LON}&units=${UNITS}&appid=${OWM_KEY}`
                 );
-                console.log('📡 Current weather response status:', currentRes.status);
                 if (!currentRes.ok) {
                     let msg = `HTTP ${currentRes.status}`;
                     if (currentRes.status === 401) msg = 'OWM API key invalid';
@@ -425,7 +419,6 @@
                     throw new Error(msg);
                 }
                 const currentData = await currentRes.json();
-                console.log('✅ Current weather received:', currentData.weather[0].description);
 
                 const temp = Math.round(currentData.main.temp);
                 currentTemp.innerHTML = `${temp}<sup>°C</sup>`;
@@ -437,20 +430,19 @@
                 const windKmh = Math.round(currentData.wind.speed * 3.6);
                 windSpeed.textContent = windKmh;
 
-                // ─── 2) 5‑DAY FORECAST (OpenWeatherMap) ───
+                // ─── 2) 5‑DAY FORECAST – FIXED: DAILY MIN/MAX ───
                 console.log('📡 Fetching forecast from OpenWeatherMap...');
                 const forecastRes = await fetch(
                     `https://api.openweathermap.org/data/2.5/forecast?lat=${LAT}&lon=${LON}&units=${UNITS}&appid=${OWM_KEY}`
                 );
-                console.log('📡 Forecast response status:', forecastRes.status);
                 if (!forecastRes.ok) {
                     let msg = `HTTP ${forecastRes.status}`;
                     if (forecastRes.status === 401) msg = 'OWM API key invalid';
                     throw new Error(msg);
                 }
                 const forecastData = await forecastRes.json();
-                console.log('✅ Forecast received, list length:', forecastData.list.length);
 
+                // Group entries by day
                 const dailyMap = new Map();
                 for (const entry of forecastData.list) {
                     const date = new Date(entry.dt * 1000);
@@ -464,29 +456,43 @@
                 const todayKey = new Date().toISOString().split('T')[0];
                 const sortedDays = Array.from(dailyMap.keys()).sort();
                 const futureDays = sortedDays.filter(d => d > todayKey).slice(0, 4);
-                console.log('📅 Forecast days (excluding today):', futureDays);
 
                 let forecastHTML = '';
                 futureDays.forEach((dayKey) => {
                     const entries = dailyMap.get(dayKey);
-                    let best = entries[0];
-                    let bestDiff = Infinity;
+
+                    // ─── FIND TRUE DAILY MAX & MIN ───
+                    let dailyMax = -100;
+                    let dailyMin = 100;
+                    let bestIcon = '🌤️';
+                    let bestDesc = '';
+
                     for (const e of entries) {
+                        const tempMax = e.main.temp_max;
+                        const tempMin = e.main.temp_min;
+                        if (tempMax > dailyMax) dailyMax = tempMax;
+                        if (tempMin < dailyMin) dailyMin = tempMin;
+                        // Use the icon from midday (12:00) or the first entry if no midday
                         const h = new Date(e.dt * 1000).getHours();
-                        const diff = Math.abs(h - 12);
-                        if (diff < bestDiff) {
-                            bestDiff = diff;
-                            best = e;
+                        if (h >= 11 && h <= 13) {
+                            bestIcon = weatherIconToEmoji(e.weather[0].icon);
+                            bestDesc = e.weather[0].description;
                         }
                     }
-                    const hi = Math.round(best.main.temp_max);
-                    const lo = Math.round(best.main.temp_min);
-                    const icon = weatherIconToEmoji(best.weather[0].icon);
-                    const name = getDayName(best.dt);
+                    // Fallback: if no midday entry, use the first one
+                    if (!bestDesc && entries.length > 0) {
+                        bestIcon = weatherIconToEmoji(entries[0].weather[0].icon);
+                        bestDesc = entries[0].weather[0].description;
+                    }
+
+                    const hi = Math.round(dailyMax);
+                    const lo = Math.round(dailyMin);
+                    const name = getDayName(entries[0].dt);
+
                     forecastHTML += `
                         <div class="day-row">
                             <span class="day-name">${name}</span>
-                            <span class="day-icon">${icon}</span>
+                            <span class="day-icon">${bestIcon}</span>
                             <span class="day-temps"><span class="hi">${hi}°</span> <span>/</span> <span class="lo">${lo}°</span></span>
                         </div>
                     `;
@@ -508,25 +514,20 @@
                 const iqairRes = await fetch(
                     `https://api.airvisual.com/v2/nearest_city?lat=${LAT}&lon=${LON}&key=${IQAIR_KEY}`
                 );
-                console.log('📡 IQAir response status:', iqairRes.status);
 
                 if (!iqairRes.ok) {
                     let msg = `IQAir HTTP ${iqairRes.status}`;
-                    if (iqairRes.status === 401) msg = 'IQAir API key invalid or not activated yet (wait a few minutes)';
+                    if (iqairRes.status === 401) msg = 'IQAir API key invalid or not activated yet';
                     else if (iqairRes.status === 429) msg = 'IQAir rate limit exceeded (5 calls/min)';
                     throw new Error(msg);
                 }
 
                 const iqairData = await iqairRes.json();
-                console.log('✅ IQAir response received');
-
                 if (iqairData.status !== 'success') {
                     throw new Error('IQAir API returned error: ' + (iqairData.data?.message || 'Unknown'));
                 }
 
                 const aqiValueNum = iqairData.data.current.pollution.aqius;
-                console.log('✅ IQAir AQI (US):', aqiValueNum);
-
                 aqiValue.textContent = aqiValueNum;
                 const level = getAqiLevel(aqiValueNum);
                 aqiDesc.textContent = level.label;
