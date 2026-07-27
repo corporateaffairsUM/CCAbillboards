@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UM Weather Billboard – Full Info</title>
+    <title>UM Weather Billboard</title>
     <style>
         /* ── Reset & Base ── */
         * {
@@ -12,7 +12,7 @@
             box-sizing: border-box;
         }
         body {
-            background: #1a1a2e;
+            background: #ffffff;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -26,8 +26,7 @@
             height: 720px;
             background: #ffffff;
             border-radius: 12px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
-            padding: 30px 40px 30px 40px;
+            padding: 30px 40px 16px 40px;
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -41,7 +40,7 @@
             margin-bottom: 18px;
             border-bottom: 3px solid #1a2a6c;
             padding-bottom: 10px;
-            flex-shrink: 0;
+            flex-shrink: 0; /* Stays at top, never shrinks */
         }
         .header .logo {
             height: 60px;
@@ -49,7 +48,7 @@
             flex-shrink: 0;
         }
         .header .city {
-            font-size: 35px;
+            font-size: 30px;
             font-weight: 900;
             color: #1a2a6c;
             text-transform: uppercase;
@@ -61,10 +60,12 @@
 
         /* ─── MAIN GRID ─── */
         .main-grid {
-            flex: 1;
+            flex: 1; /* Takes all remaining space */
             display: flex;
             gap: 40px;
             align-items: stretch;
+            min-height: 0; /* CRITICAL: allows flex children to shrink */
+            overflow: hidden; /* Prevents content from spilling below */
         }
 
         /* ═══ LEFT COLUMN – CURRENT WEATHER ─══ */
@@ -77,8 +78,10 @@
             display: flex;
             flex-direction: column;
             justify-content: space-evenly;
-            align-items: top;
+            align-items: center;
             text-align: center;
+            min-height: 0; /* Allows shrinking */
+            overflow: hidden; /* Prevents internal overflow */
         }
         .current-weather .icon {
             font-size: 110px;
@@ -123,13 +126,13 @@
             border: 1px solid #dee2e6;
             font-size: 20px;
             font-weight: 600;
-            color: #1e3a5f;
+            color: #000000;
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
             flex: 1 0 auto;
         }
         .current-weather .details .label {
             font-weight: 400;
-            color: #6c757d;
+            color: #000000;
             margin-right: 4px;
         }
 
@@ -139,6 +142,8 @@
             display: flex;
             flex-direction: column;
             gap: 20px;
+            min-height: 0; /* Allows shrinking */
+            overflow: hidden; /* Prevents internal overflow */
         }
 
         /* ─── AQI BOX ─── */
@@ -149,10 +154,10 @@
             color: #fff;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
             background: #1f8b4c;
-            flex-shrink: 0;
+            flex-shrink: 0; /* Stays fixed height */
         }
         .aqi-box .aqi-label {
-			color: #000000;
+            color: #000000;
             font-size: 18px;
             font-weight: 700;
             letter-spacing: 4px;
@@ -160,7 +165,7 @@
             opacity: 0.9;
         }
         .aqi-box .aqi-value {
-			color: #000000;
+            color: #000000;
             font-size: 76px;
             font-weight: 900;
             line-height: 1;
@@ -169,14 +174,14 @@
             text-shadow: 0 2px 12px rgba(0, 0, 0, 0.10);
         }
         .aqi-box .aqi-desc {
-			color: #000000;
+            color: #000000;
             font-size: 20px;
             font-weight: 600;
             opacity: 0.95;
             letter-spacing: 1px;
         }
         .aqi-box .aqi-credit {
-			color: #000000;
+            color: #000000;
             font-size: 11px;
             margin-top: 4px;
             letter-spacing: 0.5px;
@@ -184,15 +189,15 @@
 
         /* ─── FORECAST (4‑DAY) ─── */
         .forecast {
-            flex: 1;
+            flex: 1; /* Takes remaining space in right column */
             display: flex;
             flex-direction: column;
-            justify-content: space-evenly;
-            gap: 8px;
+            justify-content: center;
+            gap: 16px;
             background: #f8f9fa;
             border-radius: 24px;
-            padding: 16px 20px;
-            border: 1px solid #e9ecef;
+            min-height: 0; /* Allows shrinking */
+            overflow: hidden; /* Prevents internal overflow */
         }
         .forecast .day-row {
             display: flex;
@@ -206,6 +211,7 @@
             color: #1a2a4a;
             border: 1px solid #e9ecef;
             min-height: 58px;
+            flex-shrink: 0; /* Keeps rows from squishing too much */
         }
         .forecast .day-row .day-name {
             width: 85px;
@@ -235,6 +241,23 @@
         .forecast .day-row .day-temps span {
             margin: 0 4px;
             color: #adb5bd;
+        }
+
+        /* ─── FOOTER – DATE WITH SEPARATOR LINE ─── */
+        .footer {
+            flex-shrink: 0; /* NEVER shrinks – stays at bottom */
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 2px solid #1a2a6c;
+            text-align: center;
+            height: auto;
+        }
+        .footer .date-display {
+            font-size: 20px;
+            font-weight: 800;
+            text-align: center;
+            color: #1a2a6c;
+            letter-spacing: 3px;
         }
 
         /* ─── RESPONSIVE SCALING ─── */
@@ -292,7 +315,7 @@
 
         <!-- HEADER – LOGO + TITLE -->
         <div class="header">
-			<div class="city">What's on the weather today?</div>
+            <div class="city">What's on the weather today?</div>
             <img src="Logo UM-01.png" alt="UM Logo" class="logo" id="logoImage" />
         </div>
 
@@ -328,6 +351,11 @@
                 </div>
 
             </div>
+        </div>
+
+        <!-- ─── FOOTER – DATE WITH SEPARATOR LINE ─── -->
+        <div class="footer">
+            <div class="date-display" id="dateDisplay"></div>
         </div>
 
     </div>
@@ -550,9 +578,21 @@
             }
         }
 
+        // ─── UPDATE DATE DISPLAY ──────────────────────────────────
+        function updateDate() {
+            const now = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const dateString = now.toLocaleDateString('en-US', options);
+            const dateDisplay = document.getElementById('dateDisplay');
+            if (dateDisplay) {
+                dateDisplay.textContent = dateString;
+            }
+        }
+
         // ─── auto‑update ──────────────────────────────────────────
         document.addEventListener('DOMContentLoaded', function() {
             console.log('📄 DOM fully loaded, starting fetch...');
+            updateDate();
             fetchWeather();
             setInterval(fetchWeather, 30 * 60 * 1000);
         });
