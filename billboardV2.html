@@ -456,35 +456,10 @@
             aqiBox.style.background = '#95a5a6';
         }
 
-        // ─── fetch & update ────────────────────────────────────────
-        async function fetchWeather() {
-            console.log('🌤️ fetchWeather() called at', new Date().toLocaleTimeString());
-
-            const now = Date.now();
-            const cooldownUntil = getCooldown();
-
-            // If cooldown is active, show loading and schedule retry
-            if (now < cooldownUntil) {
-                const remaining = cooldownUntil - now;
-                console.log(`⏳ Cooldown active – ${Math.ceil(remaining / 1000)}s remaining`);
-                showLoadingState();
-
-                // Schedule a retry after cooldown expires
-                setTimeout(() => {
-                    console.log('🔄 Cooldown expired – retrying...');
-                    fetchWeather();
-                }, remaining + 1000);
-                return; // stop here
-            }
-
-            // If we have a pending retry timeout, clear it (we're about to make a new call)
-            if (window._aqiRetryTimeout) {
-                clearTimeout(window._aqiRetryTimeout);
-                window._aqiRetryTimeout = null;
-            }
-
+        // ─── Fetch Weather & Forecast (always) ────────────────────
+        async function fetchWeatherAndForecast() {
             try {
-                // ─── 1) CURRENT WEATHER ───
+                // 1) Current weather
                 console.log('📡 Fetching current weather from OpenWeatherMap...');
                 const currentRes = await fetch(
                     `https://api.openweathermap.org/data/2.5/weather?lat=${LAT}&lon=${LON}&units=${UNITS}&appid=${OWM_KEY}`
@@ -507,7 +482,7 @@
                 const windKmh = Math.round(currentData.wind.speed * 3.6);
                 windSpeed.textContent = windKmh;
 
-                // ─── 2) 5‑DAY FORECAST ───
+                // 2) 5‑day forecast
                 console.log('📡 Fetching forecast from OpenWeatherMap...');
                 const forecastRes = await fetch(
                     `https://api.openweathermap.org/data/2.5/forecast?lat=${LAT}&lon=${LON}&units=${UNITS}&appid=${OWM_KEY}`
@@ -586,7 +561,33 @@
                 }
                 forecastContainer.innerHTML = forecastHTML;
 
-                // ─── 3) AIR QUALITY (IQAir) ───
+                console.log('✅ Weather & forecast updated successfully!');
+            } catch (error) {
+                console.error('❌ Weather/Forecast fetch failed:', error.message);
+                showError('Weather data unavailable: ' + error.message);
+            }
+        }
+
+        // ─── Fetch AQI (with cooldown) ────────────────────────────
+        async function fetchAQI() {
+            const now = Date.now();
+            const cooldownUntil = getCooldown();
+
+            // If cooldown is active, show loading and schedule retry
+            if (now < cooldownUntil) {
+                const remaining = cooldownUntil - now;
+                console.log(`⏳ AQI cooldown active – ${Math.ceil(remaining / 1000)}s remaining`);
+                showLoadingState();
+
+                // Schedule retry after cooldown expires
+                setTimeout(() => {
+                    console.log('🔄 AQI cooldown expired – retrying...');
+                    fetchAQI();
+                }, remaining + 1000);
+                return; // stop here
+            }
+
+            try {
                 console.log('📡 Fetching air quality from IQAir...');
                 const iqairRes = await fetch(
                     `https://api.airvisual.com/v2/nearest_city?lat=${LAT}&lon=${LON}&key=${IQAIR_KEY}`
@@ -600,9 +601,9 @@
                     showLoadingState();
 
                     // Schedule retry
-                    window._aqiRetryTimeout = setTimeout(() => {
-                        window._aqiRetryTimeout = null;
-                        fetchWeather();
+                    setTimeout(() => {
+                        console.log('🔄 AQI rate limit retry...');
+                        fetchAQI();
                     }, 5 * 60 * 1000 + 1000);
                     return;
                 }
@@ -626,22 +627,13 @@
 
                 // Success – clear cooldown
                 clearCooldown();
-                if (window._aqiRetryTimeout) {
-                    clearTimeout(window._aqiRetryTimeout);
-                    window._aqiRetryTimeout = null;
-                }
-
-                console.log('🎉 All data updated successfully!');
+                console.log('✅ AQI updated successfully!');
 
             } catch (error) {
-                console.error('❌ fetchWeather() caught an error:', error.message);
-                if (error.message.includes('IQAir')) {
-                    aqiValue.textContent = '?';
-                    aqiDesc.textContent = 'AQI error';
-                    aqiBox.style.background = '#95a5a6';
-                } else {
-                    showError('API is not ready: ' + error.message);
-                }
+                console.error('❌ AQI fetch failed:', error.message);
+                aqiValue.textContent = '?';
+                aqiDesc.textContent = 'AQI error';
+                aqiBox.style.background = '#95a5a6';
             }
         }
 
@@ -661,20 +653,17 @@
             console.log('📄 DOM fully loaded, starting fetch...');
             updateDate();
 
-            // If cooldown is active, show loading and schedule retry
-            const cooldownUntil = getCooldown();
-            if (Date.now() < cooldownUntil) {
-                showLoadingState();
-                const remaining = cooldownUntil - Date.now();
-                setTimeout(() => {
-                    console.log('🔄 Cooldown expired (from page load) – retrying...');
-                    fetchWeather();
-                }, remaining + 1000);
-            } else {
-                fetchWeather();
-            }
+            // Always fetch weather & forecast immediately
+            fetchWeatherAndForecast();
 
-            setInterval(fetchWeather, 30 * 60 * 1000);
+            // Fetch AQI (respects cooldown)
+            fetchAQI();
+
+            // Refresh everything every 30 minutes
+            setInterval(() => {
+                fetchWeatherAndForecast();
+                fetchAQI();
+            }, 30 * 60 * 1000);
         });
     </script>
 
