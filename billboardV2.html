@@ -383,6 +383,10 @@
         const aqiDesc = document.getElementById('aqiDesc');
         const aqiBox = document.getElementById('aqiBox');
 
+        // ─── Rate limit handling ──────────────────────────────────
+        let aqiRetryTimeout = null;
+        let aqiCooldownUntil = 0;
+
         // ─── helpers ───────────────────────────────────────────────
         function getDayName(ts) {
             const d = new Date(ts * 1000);
@@ -436,6 +440,12 @@
         // ─── fetch & update ────────────────────────────────────────
         async function fetchWeather() {
             console.log('🌤️ fetchWeather() called at', new Date().toLocaleTimeString());
+
+            // Cancel any pending retry
+            if (aqiRetryTimeout) {
+                clearTimeout(aqiRetryTimeout);
+                aqiRetryTimeout = null;
+            }
 
             try {
                 // ─── 1) CURRENT WEATHER ───
@@ -540,16 +550,49 @@
                 }
                 forecastContainer.innerHTML = forecastHTML;
 
-                // ─── 3) AIR QUALITY (IQAir) ───
+                // ─── 3) AIR QUALITY (IQAir) – with cooldown check ──
+                const now = Date.now();
+                if (now < aqiCooldownUntil) {
+                    const waitSeconds = Math.ceil((aqiCooldownUntil - now) / 1000);
+                    console.log(`⏳ IQAir cooldown active – waiting ${waitSeconds}s`);
+                    aqiValue.textContent = '⏳';
+                    aqiDesc.textContent = `Rate limit – retry in ${waitSeconds}s`;
+                    aqiBox.style.background = '#95a5a6';
+                    // Still try again after cooldown
+                    if (!aqiRetryTimeout) {
+                        aqiRetryTimeout = setTimeout(() => {
+                            aqiRetryTimeout = null;
+                            fetchWeather(); // re-run full fetch after cooldown
+                        }, aqiCooldownUntil - now + 1000);
+                    }
+                    return; // stop here – we'll retry later
+                }
+
                 console.log('📡 Fetching air quality from IQAir...');
                 const iqairRes = await fetch(
                     `https://api.airvisual.com/v2/nearest_city?lat=${LAT}&lon=${LON}&key=${IQAIR_KEY}`
                 );
 
+                if (iqairRes.status === 429) {
+                    // Rate limit – set cooldown for 5 minutes
+                    aqiCooldownUntil = Date.now() + 5 * 60 * 1000;
+                    console.warn('⚠️ IQAir rate limit hit – cooldown until', new Date(aqiCooldownUntil));
+                    aqiValue.textContent = '⏳';
+                    aqiDesc.textContent = 'Rate limit – retrying in 5 min';
+                    aqiBox.style.background = '#95a5a6';
+                    // Schedule retry
+                    if (!aqiRetryTimeout) {
+                        aqiRetryTimeout = setTimeout(() => {
+                            aqiRetryTimeout = null;
+                            fetchWeather();
+                        }, 5 * 60 * 1000 + 1000);
+                    }
+                    return;
+                }
+
                 if (!iqairRes.ok) {
                     let msg = `IQAir HTTP ${iqairRes.status}`;
-                    if (iqairRes.status === 401) msg = 'IQAir API key invalid or not activated yet';
-                    else if (iqairRes.status === 429) msg = 'IQAir rate limit exceeded (5 calls/min)';
+                    if (iqairRes.status === 401) msg = 'IQAir API key invalid';
                     throw new Error(msg);
                 }
 
@@ -564,13 +607,20 @@
                 aqiDesc.textContent = level.label;
                 aqiBox.style.background = level.color;
 
+                // If we got a successful AQI, reset cooldown
+                aqiCooldownUntil = 0;
+                if (aqiRetryTimeout) {
+                    clearTimeout(aqiRetryTimeout);
+                    aqiRetryTimeout = null;
+                }
+
                 console.log('🎉 All data updated successfully!');
 
             } catch (error) {
                 console.error('❌ fetchWeather() caught an error:', error.message);
                 if (error.message.includes('IQAir')) {
                     aqiValue.textContent = '?';
-                    aqiDesc.textContent = 'AQI unavailable';
+                    aqiDesc.textContent = 'AQI error';
                     aqiBox.style.background = '#95a5a6';
                 } else {
                     showError('API is not ready: ' + error.message);
