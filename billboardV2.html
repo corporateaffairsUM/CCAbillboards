@@ -40,7 +40,7 @@
             margin-bottom: 18px;
             border-bottom: 3px solid #1a2a6c;
             padding-bottom: 10px;
-            flex-shrink: 0; /* Stays at top, never shrinks */
+            flex-shrink: 0;
         }
         .header .logo {
             height: 60px;
@@ -60,12 +60,12 @@
 
         /* ─── MAIN GRID ─── */
         .main-grid {
-            flex: 1; /* Takes all remaining space */
+            flex: 1;
             display: flex;
             gap: 40px;
             align-items: stretch;
-            min-height: 0; /* CRITICAL: allows flex children to shrink */
-            overflow: hidden; /* Prevents content from spilling below */
+            min-height: 0;
+            overflow: hidden;
         }
 
         /* ═══ LEFT COLUMN – CURRENT WEATHER ─══ */
@@ -80,8 +80,8 @@
             justify-content: space-evenly;
             align-items: center;
             text-align: center;
-            min-height: 0; /* Allows shrinking */
-            overflow: hidden; /* Prevents internal overflow */
+            min-height: 0;
+            overflow: hidden;
         }
         .current-weather .icon {
             font-size: 110px;
@@ -142,8 +142,8 @@
             display: flex;
             flex-direction: column;
             gap: 20px;
-            min-height: 0; /* Allows shrinking */
-            overflow: hidden; /* Prevents internal overflow */
+            min-height: 0;
+            overflow: hidden;
         }
 
         /* ─── AQI BOX ─── */
@@ -154,7 +154,7 @@
             color: #fff;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
             background: #1f8b4c;
-            flex-shrink: 0; /* Stays fixed height */
+            flex-shrink: 0;
         }
         .aqi-box .aqi-label {
             color: #000000;
@@ -189,15 +189,15 @@
 
         /* ─── FORECAST (4‑DAY) ─── */
         .forecast {
-            flex: 1; /* Takes remaining space in right column */
+            flex: 1;
             display: flex;
             flex-direction: column;
             justify-content: center;
             gap: 16px;
             background: #f8f9fa;
             border-radius: 24px;
-            min-height: 0; /* Allows shrinking */
-            overflow: hidden; /* Prevents internal overflow */
+            min-height: 0;
+            overflow: hidden;
         }
         .forecast .day-row {
             display: flex;
@@ -211,7 +211,7 @@
             color: #1a2a4a;
             border: 1px solid #e9ecef;
             min-height: 58px;
-            flex-shrink: 0; /* Keeps rows from squishing too much */
+            flex-shrink: 0;
         }
         .forecast .day-row .day-name {
             width: 85px;
@@ -245,7 +245,7 @@
 
         /* ─── FOOTER – DATE WITH SEPARATOR LINE ─── */
         .footer {
-            flex-shrink: 0; /* NEVER shrinks – stays at bottom */
+            flex-shrink: 0;
             margin-top: 14px;
             padding-top: 12px;
             border-top: 2px solid #1a2a6c;
@@ -553,10 +553,9 @@
                 // ─── 3) AIR QUALITY (IQAir) – with cooldown check ──
                 const now = Date.now();
                 if (now < aqiCooldownUntil) {
-                    const waitSeconds = Math.ceil((aqiCooldownUntil - now) / 1000);
-                    console.log(`⏳ IQAir cooldown active – waiting ${waitSeconds}s`);
-                    aqiValue.textContent = '⏳';
-                    aqiDesc.textContent = `Rate limit – retry in ${waitSeconds}s`;
+                    console.log(`⏳ IQAir cooldown active – waiting ${Math.ceil((aqiCooldownUntil - now) / 1000)}s`);
+                    aqiValue.textContent = '...';
+                    aqiDesc.textContent = 'Loading...';
                     aqiBox.style.background = '#95a5a6';
                     // Still try again after cooldown
                     if (!aqiRetryTimeout) {
@@ -577,8 +576,8 @@
                     // Rate limit – set cooldown for 5 minutes
                     aqiCooldownUntil = Date.now() + 5 * 60 * 1000;
                     console.warn('⚠️ IQAir rate limit hit – cooldown until', new Date(aqiCooldownUntil));
-                    aqiValue.textContent = '⏳';
-                    aqiDesc.textContent = 'Rate limit – retrying in 5 min';
+                    aqiValue.textContent = '...';
+                    aqiDesc.textContent = 'Loading...';
                     aqiBox.style.background = '#95a5a6';
                     // Schedule retry
                     if (!aqiRetryTimeout) {
