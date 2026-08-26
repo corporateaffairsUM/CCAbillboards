@@ -342,7 +342,7 @@
                     <div class="aqi-label">Air Quality Index</div>
                     <div class="aqi-value" id="aqiValue">--</div>
                     <div class="aqi-desc" id="aqiDesc">loading…</div>
-                    <div class="aqi-credit">Real‑time data • IQAir</div>
+                    <div class="aqi-credit" id="aqiCredit">Fetching data…</div>
                 </div>
 
                 <!-- Forecast -->
@@ -366,7 +366,9 @@
 
         // ─── API KEYS ──────────────────────────────────────────────
         const OWM_KEY = '96a9d62bbe7be4ad886c3d0c2fca59e3';
-        const IQAIR_KEY = 'f2d845b5-4d9e-41a9-8124-0a5ba98e59d6';
+        // IQAir key is now stored as a GitHub secret and used by the workflow.
+        // The billboard only reads the cached aqi.json file.
+
         const LAT = 3.1209;
         const LON = 101.6534;
         const UNITS = 'metric';
@@ -382,22 +384,7 @@
         const aqiValue = document.getElementById('aqiValue');
         const aqiDesc = document.getElementById('aqiDesc');
         const aqiBox = document.getElementById('aqiBox');
-
-        // ─── Rate limit handling (persisted in localStorage) ──────
-        const COOLDOWN_KEY = 'iqair_cooldown_until';
-
-        function getCooldown() {
-            const val = localStorage.getItem(COOLDOWN_KEY);
-            return val ? parseInt(val, 10) : 0;
-        }
-
-        function setCooldown(timestamp) {
-            localStorage.setItem(COOLDOWN_KEY, String(timestamp));
-        }
-
-        function clearCooldown() {
-            localStorage.removeItem(COOLDOWN_KEY);
-        }
+        const aqiCredit = document.getElementById('aqiCredit');
 
         // ─── helpers ───────────────────────────────────────────────
         function getDayName(ts) {
@@ -447,16 +434,10 @@
             aqiValue.textContent = '--';
             aqiDesc.textContent = 'unavailable';
             aqiBox.style.background = '#95a5a6';
+            aqiCredit.textContent = 'Data unavailable';
         }
 
-        // ─── Show loading state (cooldown) ────────────────────────
-        function showLoadingState() {
-            aqiValue.textContent = '...';
-            aqiDesc.textContent = 'Loading...';
-            aqiBox.style.background = '#95a5a6';
-        }
-
-        // ─── Fetch Weather & Forecast (always) ────────────────────
+        // ─── Fetch Weather & Forecast ─────────────────────────────
         async function fetchWeatherAndForecast() {
             try {
                 // 1) Current weather
@@ -513,7 +494,6 @@
                 futureDays.forEach((dayKey) => {
                     const entries = dailyMap.get(dayKey);
 
-                    // ─── FIND TRUE DAILY MAX & MIN ───
                     let dailyMax = -100;
                     let dailyMin = 100;
                     let bestIcon = '🌤️';
@@ -524,14 +504,12 @@
                         const tempMin = e.main.temp_min;
                         if (tempMax > dailyMax) dailyMax = tempMax;
                         if (tempMin < dailyMin) dailyMin = tempMin;
-                        // Use the icon from midday (12:00) or the first entry if no midday
                         const h = new Date(e.dt * 1000).getHours();
                         if (h >= 11 && h <= 13) {
                             bestIcon = weatherIconToEmoji(e.weather[0].icon);
                             bestDesc = e.weather[0].description;
                         }
                     }
-                    // Fallback: if no midday entry, use the first one
                     if (!bestDesc && entries.length > 0) {
                         bestIcon = weatherIconToEmoji(entries[0].weather[0].icon);
                         bestDesc = entries[0].weather[0].description;
@@ -568,72 +546,34 @@
             }
         }
 
-        // ─── Fetch AQI (with cooldown) ────────────────────────────
+        // ─── Fetch AQI from cached aqi.json ──────────────────────
         async function fetchAQI() {
-            const now = Date.now();
-            const cooldownUntil = getCooldown();
-
-            // If cooldown is active, show loading and schedule retry
-            if (now < cooldownUntil) {
-                const remaining = cooldownUntil - now;
-                console.log(`⏳ AQI cooldown active – ${Math.ceil(remaining / 1000)}s remaining`);
-                showLoadingState();
-
-                // Schedule retry after cooldown expires
-                setTimeout(() => {
-                    console.log('🔄 AQI cooldown expired – retrying...');
-                    fetchAQI();
-                }, remaining + 1000);
-                return; // stop here
-            }
-
             try {
-                console.log('📡 Fetching air quality from IQAir...');
-                const iqairRes = await fetch(
-                    `https://api.airvisual.com/v2/nearest_city?lat=${LAT}&lon=${LON}&key=${IQAIR_KEY}`
-                );
-
-                if (iqairRes.status === 429) {
-                    // Rate limit – set cooldown for 5 minutes
-                    const cooldownTime = Date.now() + 5 * 60 * 1000;
-                    setCooldown(cooldownTime);
-                    console.warn('⚠️ IQAir rate limit hit – cooldown until', new Date(cooldownTime));
-                    showLoadingState();
-
-                    // Schedule retry
-                    setTimeout(() => {
-                        console.log('🔄 AQI rate limit retry...');
-                        fetchAQI();
-                    }, 5 * 60 * 1000 + 1000);
-                    return;
+                console.log('📡 Fetching AQI from local cache (aqi.json)...');
+                const response = await fetch('aqi.json?t=' + Date.now());
+                if (!response.ok) {
+                    throw new Error('Failed to fetch aqi.json (HTTP ' + response.status + ')');
                 }
+                const data = await response.json();
 
-                if (!iqairRes.ok) {
-                    let msg = `IQAir HTTP ${iqairRes.status}`;
-                    if (iqairRes.status === 401) msg = 'IQAir API key invalid';
-                    throw new Error(msg);
-                }
+                const aqi = data.aqi;
+                const level = getAqiLevel(aqi);
 
-                const iqairData = await iqairRes.json();
-                if (iqairData.status !== 'success') {
-                    throw new Error('IQAir API returned error: ' + (iqairData.data?.message || 'Unknown'));
-                }
-
-                const aqiValueNum = iqairData.data.current.pollution.aqius;
-                aqiValue.textContent = aqiValueNum;
-                const level = getAqiLevel(aqiValueNum);
+                aqiValue.textContent = aqi;
                 aqiDesc.textContent = level.label;
                 aqiBox.style.background = level.color;
 
-                // Success – clear cooldown
-                clearCooldown();
-                console.log('✅ AQI updated successfully!');
+                // Show when it was last updated
+                const updatedTime = new Date(data.updatedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                aqiCredit.textContent = 'Updated ' + updatedTime + ' • IQAir';
 
+                console.log('✅ AQI loaded from cache:', aqi, 'updated at', data.updatedAt);
             } catch (error) {
-                console.error('❌ AQI fetch failed:', error.message);
+                console.error('❌ Failed to load AQI from cache:', error);
                 aqiValue.textContent = '?';
                 aqiDesc.textContent = 'AQI error';
                 aqiBox.style.background = '#95a5a6';
+                aqiCredit.textContent = 'Data unavailable';
             }
         }
 
@@ -656,13 +596,13 @@
             // Always fetch weather & forecast immediately
             fetchWeatherAndForecast();
 
-            // Fetch AQI (respects cooldown)
+            // Fetch AQI from local cache
             fetchAQI();
 
             // Refresh everything every 30 minutes
             setInterval(() => {
                 fetchWeatherAndForecast();
-                fetchAQI();
+                fetchAQI(); // will re-fetch the (possibly updated) aqi.json
             }, 30 * 60 * 1000);
         });
     </script>
