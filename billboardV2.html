@@ -366,7 +366,7 @@
 
         // ─── API KEYS ──────────────────────────────────────────────
         const OWM_KEY = '96a9d62bbe7be4ad886c3d0c2fca59e3';
-        // IQAir key is now stored as a GitHub secret and used by the workflow.
+        // IQAir key is stored as a GitHub secret and used by the workflow.
         // The billboard only reads the cached aqi.json file.
 
         const LAT = 3.1209;
@@ -546,16 +546,14 @@
             }
         }
 
-        // ─── Fetch AQI from cached aqi.json ──────────────────────
+        // ─── Fetch AQI from cached aqi.json (with fallback) ──────────
         async function fetchAQI() {
             try {
                 console.log('📡 Fetching AQI from local cache (aqi.json)...');
                 const response = await fetch('aqi.json?t=' + Date.now());
-                if (!response.ok) {
-                    throw new Error('Failed to fetch aqi.json (HTTP ' + response.status + ')');
-                }
-                const data = await response.json();
+                if (!response.ok) throw new Error('aqi.json not found');
 
+                const data = await response.json();
                 const aqi = data.aqi;
                 const level = getAqiLevel(aqi);
 
@@ -563,17 +561,39 @@
                 aqiDesc.textContent = level.label;
                 aqiBox.style.background = level.color;
 
-                // Show when it was last updated
                 const updatedTime = new Date(data.updatedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
                 aqiCredit.textContent = 'Updated ' + updatedTime + ' • IQAir';
-
-                console.log('✅ AQI loaded from cache:', aqi, 'updated at', data.updatedAt);
+                console.log('✅ AQI loaded from cache:', aqi);
             } catch (error) {
-                console.error('❌ Failed to load AQI from cache:', error);
-                aqiValue.textContent = '?';
-                aqiDesc.textContent = 'AQI error';
-                aqiBox.style.background = '#95a5a6';
-                aqiCredit.textContent = 'Data unavailable';
+                console.warn('⚠️ AQI cache not available, trying OpenWeatherMap fallback...');
+                // Fallback to OpenWeatherMap AQI
+                try {
+                    const res = await fetch(
+                        `https://api.openweathermap.org/data/2.5/air_pollution?lat=${LAT}&lon=${LON}&appid=${OWM_KEY}`
+                    );
+                    if (!res.ok) throw new Error('OWM AQI error');
+                    const data = await res.json();
+                    const pm25 = data.list[0].components.pm2_5;
+                    // Convert PM2.5 to approximate AQI
+                    let aqi = Math.round((pm25 / 12) * 50);
+                    if (aqi > 50) aqi = Math.round(((pm25 - 12) / (35.4 - 12)) * 50 + 51);
+                    if (aqi > 100) aqi = Math.round(((pm25 - 35.4) / (55.4 - 35.4)) * 50 + 101);
+                    if (aqi > 150) aqi = Math.round(((pm25 - 55.4) / (150.4 - 55.4)) * 50 + 151);
+                    if (aqi > 200) aqi = Math.round(((pm25 - 150.4) / (250.4 - 150.4)) * 100 + 201);
+                    if (aqi > 300) aqi = 301;
+                    const level = getAqiLevel(aqi);
+                    aqiValue.textContent = aqi;
+                    aqiDesc.textContent = level.label;
+                    aqiBox.style.background = level.color;
+                    aqiCredit.textContent = 'Estimate • OpenWeatherMap';
+                    console.log('✅ Using OWM fallback AQI:', aqi);
+                } catch (fallbackError) {
+                    console.error('❌ All AQI sources failed:', fallbackError);
+                    aqiValue.textContent = '?';
+                    aqiDesc.textContent = 'AQI error';
+                    aqiBox.style.background = '#95a5a6';
+                    aqiCredit.textContent = 'Data unavailable';
+                }
             }
         }
 
