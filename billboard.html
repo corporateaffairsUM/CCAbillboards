@@ -139,7 +139,7 @@
             justify-content: center;
             gap: 6px;
             flex-shrink: 0;
-			width: 40%;
+            width: 40%;
         }
         .weather-right .detail-item {
             background: #ffffff;
@@ -228,17 +228,18 @@
             margin-top: 4px;
             letter-spacing: 0.5px;
         }
+
         /* ─── FORECAST (4‑DAY) ─── */
         .forecast {
-            flex: 1; /* Takes remaining space in right column */
+            flex: 1;
             display: flex;
             flex-direction: column;
             justify-content: center;
             gap: 16px;
             background: #f8f9fa;
             border-radius: 24px;
-            min-height: 0; /* Allows shrinking */
-            overflow: hidden; /* Prevents internal overflow */
+            min-height: 0;
+            overflow: hidden;
         }
         .forecast .day-row {
             display: flex;
@@ -246,13 +247,13 @@
             justify-content: space-between;
             background: #ffffff;
             border-radius: 16px;
-			padding: 4px 20px;
+            padding: 4px 20px;
             font-size: 22px;
             font-weight: 600;
             color: #1a2a4a;
             border: 1px solid #e9ecef;
             min-height: 58px;
-            flex-shrink: 0; /* Keeps rows from squishing too much */
+            flex-shrink: 0;
         }
         .forecast .day-row .day-name {
             width: 85px;
@@ -402,7 +403,7 @@
                     <div class="aqi-label">Air Quality Index</div>
                     <div class="aqi-value" id="aqiValue">--</div>
                     <div class="aqi-desc" id="aqiDesc">loading…</div>
-                    <div class="aqi-credit">Real‑time data • IQAir</div>
+                    <div class="aqi-credit" id="aqiCredit">Fetching data…</div>
                 </div>
 
                 <!-- Forecast -->
@@ -426,7 +427,8 @@
 
         // ─── API KEYS ──────────────────────────────────────────────
         const OWM_KEY = '96a9d62bbe7be4ad886c3d0c2fca59e3';
-        const IQAIR_KEY = 'f2d845b5-4d9e-41a9-8124-0a5ba98e59d6';
+        // IQAir key is now stored as a GitHub secret and used by the workflow.
+        // The billboard only reads the cached aqi.json file.
         const LAT = 3.1209;
         const LON = 101.6534;
         const UNITS = 'metric';
@@ -442,6 +444,7 @@
         const aqiValue = document.getElementById('aqiValue');
         const aqiDesc = document.getElementById('aqiDesc');
         const aqiBox = document.getElementById('aqiBox');
+        const aqiCredit = document.getElementById('aqiCredit');
 
         // ─── helpers ───────────────────────────────────────────────
         function getDayName(ts) {
@@ -491,10 +494,11 @@
             aqiValue.textContent = '--';
             aqiDesc.textContent = 'unavailable';
             aqiBox.style.background = '#95a5a6';
+            aqiCredit.textContent = 'Data unavailable';
         }
 
-        // ─── fetch & update ────────────────────────────────────────
-        async function fetchWeather() {
+        // ─── fetch Weather & Forecast ─────────────────────────────
+        async function fetchWeatherAndForecast() {
             console.log('🌤️ fetchWeather() called at', new Date().toLocaleTimeString());
 
             try {
@@ -600,40 +604,61 @@
                 }
                 forecastContainer.innerHTML = forecastHTML;
 
-                // ─── 3) AIR QUALITY (IQAir) ───
-                console.log('📡 Fetching air quality from IQAir...');
-                const iqairRes = await fetch(
-                    `https://api.airvisual.com/v2/nearest_city?lat=${LAT}&lon=${LON}&key=${IQAIR_KEY}`
-                );
+                console.log('✅ Weather & forecast updated successfully!');
 
-                if (!iqairRes.ok) {
-                    let msg = `IQAir HTTP ${iqairRes.status}`;
-                    if (iqairRes.status === 401) msg = 'IQAir API key invalid or not activated yet';
-                    else if (iqairRes.status === 429) msg = 'IQAir rate limit exceeded (5 calls/min)';
-                    throw new Error(msg);
-                }
+            } catch (error) {
+                console.error('❌ Weather/Forecast fetch failed:', error.message);
+                showError('Weather data unavailable: ' + error.message);
+            }
+        }
 
-                const iqairData = await iqairRes.json();
-                if (iqairData.status !== 'success') {
-                    throw new Error('IQAir API returned error: ' + (iqairData.data?.message || 'Unknown'));
-                }
+        // ─── Fetch AQI from cached aqi.json (with fallback) ──────────
+        async function fetchAQI() {
+            try {
+                console.log('📡 Fetching AQI from local cache (aqi.json)...');
+                const response = await fetch('aqi.json?t=' + Date.now());
+                if (!response.ok) throw new Error('aqi.json not found');
 
-                const aqiValueNum = iqairData.data.current.pollution.aqius;
-                aqiValue.textContent = aqiValueNum;
-                const level = getAqiLevel(aqiValueNum);
+                const data = await response.json();
+                const aqi = data.aqi;
+                const level = getAqiLevel(aqi);
+
+                aqiValue.textContent = aqi;
                 aqiDesc.textContent = level.label;
                 aqiBox.style.background = level.color;
 
-                console.log('🎉 All data updated successfully!');
-
+                const updatedTime = new Date(data.updatedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                aqiCredit.textContent = 'Updated ' + updatedTime + ' • IQAir';
+                console.log('✅ AQI loaded from cache:', aqi);
             } catch (error) {
-                console.error('❌ fetchWeather() caught an error:', error.message);
-                if (error.message.includes('IQAir')) {
+                console.warn('⚠️ AQI cache not available, trying OpenWeatherMap fallback...');
+                // Fallback to OpenWeatherMap AQI
+                try {
+                    const res = await fetch(
+                        `https://api.openweathermap.org/data/2.5/air_pollution?lat=${LAT}&lon=${LON}&appid=${OWM_KEY}`
+                    );
+                    if (!res.ok) throw new Error('OWM AQI error');
+                    const data = await res.json();
+                    const pm25 = data.list[0].components.pm2_5;
+                    // Convert PM2.5 to approximate AQI
+                    let aqi = Math.round((pm25 / 12) * 50);
+                    if (aqi > 50) aqi = Math.round(((pm25 - 12) / (35.4 - 12)) * 50 + 51);
+                    if (aqi > 100) aqi = Math.round(((pm25 - 35.4) / (55.4 - 35.4)) * 50 + 101);
+                    if (aqi > 150) aqi = Math.round(((pm25 - 55.4) / (150.4 - 55.4)) * 50 + 151);
+                    if (aqi > 200) aqi = Math.round(((pm25 - 150.4) / (250.4 - 150.4)) * 100 + 201);
+                    if (aqi > 300) aqi = 301;
+                    const level = getAqiLevel(aqi);
+                    aqiValue.textContent = aqi;
+                    aqiDesc.textContent = level.label;
+                    aqiBox.style.background = level.color;
+                    aqiCredit.textContent = 'Estimate • OpenWeatherMap';
+                    console.log('✅ Using OWM fallback AQI:', aqi);
+                } catch (fallbackError) {
+                    console.error('❌ All AQI sources failed:', fallbackError);
                     aqiValue.textContent = '?';
-                    aqiDesc.textContent = 'AQI unavailable';
+                    aqiDesc.textContent = 'AQI error';
                     aqiBox.style.background = '#95a5a6';
-                } else {
-                    showError('API is not ready: ' + error.message);
+                    aqiCredit.textContent = 'Data unavailable';
                 }
             }
         }
@@ -653,8 +678,18 @@
         document.addEventListener('DOMContentLoaded', function() {
             console.log('📄 DOM fully loaded, starting fetch...');
             updateDate();
-            fetchWeather();
-            setInterval(fetchWeather, 30 * 60 * 1000);
+
+            // Always fetch weather & forecast immediately
+            fetchWeatherAndForecast();
+
+            // Fetch AQI from local cache
+            fetchAQI();
+
+            // Refresh everything every 30 minutes
+            setInterval(() => {
+                fetchWeatherAndForecast();
+                fetchAQI(); // will re-fetch the (possibly updated) aqi.json
+            }, 30 * 60 * 1000);
         });
     </script>
 
