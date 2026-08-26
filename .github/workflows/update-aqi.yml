@@ -2,10 +2,12 @@ name: Update AQI Data
 
 on:
   schedule:
-    # Runs every 30 minutes
     - cron: '*/30 * * * *'
-  # Allows manual trigger from GitHub Actions tab
   workflow_dispatch:
+
+# Give the token write access to the repository
+permissions:
+  contents: write
 
 jobs:
   update-aqi:
@@ -13,10 +15,10 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
           
@@ -26,7 +28,7 @@ jobs:
           IQAIR_KEY: ${{ secrets.IQAIR_KEY }}
           
       - name: Commit and push changes
-        uses: stefanzweifel/git-auto-commit-action@v4
+        uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: update AQI data [skip ci]"
           file_pattern: "aqi.json"
