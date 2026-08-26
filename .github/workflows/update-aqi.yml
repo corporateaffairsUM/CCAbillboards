@@ -5,30 +5,27 @@ on:
     - cron: '*/30 * * * *'
   workflow_dispatch:
 
-# Give the token write access to the repository
 permissions:
   contents: write
 
 jobs:
   update-aqi:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
-        
+        uses: actions/checkout@v6          # ✅ v6 supports Node.js 24[reference:2]
+
       - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          
+        uses: actions/setup-node@v6        # ✅ v6 supports Node.js 24[reference:3]
+
       - name: Fetch and save AQI data
         run: node .github/scripts/fetch-aqi.js
         env:
           IQAIR_KEY: ${{ secrets.IQAIR_KEY }}
-          
+
       - name: Commit and push changes
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v7   # ✅ v7 supports Node.js 24[reference:4]
         with:
           commit_message: "chore: update AQI data [skip ci]"
           file_pattern: "aqi.json"
